@@ -1,6 +1,12 @@
 package server.faulttolerance;
 
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Session;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import edu.umass.cs.gigapaxos.interfaces.Replicable;
 import edu.umass.cs.gigapaxos.interfaces.Request;
 import edu.umass.cs.nio.interfaces.IntegerPacketType;
@@ -9,10 +15,26 @@ import edu.umass.cs.nio.nioutils.NIOHeader;
 import edu.umass.cs.nio.nioutils.NodeConfigUtils;
 import edu.umass.cs.reconfiguration.reconfigurationutils.RequestParseException;
 
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.Vector;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+
+
 
 /**
  * This class should implement your {@link Replicable} database app if you wish
@@ -46,8 +68,10 @@ public class MyDBReplicableAppGP implements Replicable {
 	 * Faster
 	 * is not necessarily better, so don't sweat speed. Focus on safety.
 	 */
-	public static final int SLEEP = 1000;
-
+	public static final int SLEEP = 1500;
+	protected final String myID;
+	final private Session session;
+    final private Cluster cluster;
 	/**
 	 * All Gigapaxos apps must either support a no-args constructor or a
 	 * constructor taking a String[] as the only argument. Gigapaxos relies on
@@ -60,8 +84,10 @@ public class MyDBReplicableAppGP implements Replicable {
 	 * @throws IOException
 	 */
 	public MyDBReplicableAppGP(String[] args) throws IOException {
-		// TODO: setup connection to the data store and keyspace
-		throw new RuntimeException("Not yet implemented");
+		this.myID = args [0];
+		session = (cluster=Cluster.builder().addContactPoint("127.0.0.1")
+                .build()).connect(myID);
+		//throw new RuntimeException("Not yet implemented");
 	}
 
 	/**
@@ -77,8 +103,10 @@ public class MyDBReplicableAppGP implements Replicable {
 	 */
 	@Override
 	public boolean execute(Request request, boolean b) {
-		// TODO: submit request to data store
-		throw new RuntimeException("Not yet implemented");
+		return execute(request);
+			
+		
+	
 	}
 
 	/**
@@ -91,7 +119,28 @@ public class MyDBReplicableAppGP implements Replicable {
 	@Override
 	public boolean execute(Request request) {
 		// TODO: execute the request by sending it to the data store
-		throw new RuntimeException("Not yet implemented");
+		String query = request.toString();
+		
+		JSONObject json1;
+		String query_toexec="";
+		try {
+			json1 = new JSONObject(query);
+			query_toexec = json1.getString("QV");
+			//System.out.println(query_toexec);
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		//ResultSet resultSet = session.execute(query);
+		try{
+			session.execute(query_toexec);
+			//String p = this.checkpoint(myID);
+		}
+			catch(Exception e){
+				return false;
+
+			}
+			return true;
 	}
 
 	/**
@@ -102,8 +151,13 @@ public class MyDBReplicableAppGP implements Replicable {
 	 */
 	@Override
 	public String checkpoint(String s) {
-		// TODO:
-		throw new RuntimeException("Not yet implemented");
+		//System.out.println("CHECKPOINT");
+
+		ResultSet result =  session.execute("SELECT * FROM grade;");
+		String all_results = result.all().toString();
+		//System.out.println(myID + "---:+" + all_results);
+		
+		return  all_results;
 	}
 
 	/**
@@ -115,8 +169,59 @@ public class MyDBReplicableAppGP implements Replicable {
 	 */
 	@Override
 	public boolean restore(String s, String s1) {
-		// TODO:
-		throw new RuntimeException("Not yet implemented");
+
+		String resultFromCheckPoint; 
+		Pattern pat;
+		Matcher match;
+		Map<Integer, ArrayList<Integer>>  resultsRestore;
+
+		if(s1.length()==2)
+		{
+		
+			return true;
+		}
+		
+		resultFromCheckPoint= s1;
+		pat = Pattern.compile("Row\\[(-?\\d+), \\[([^\\]]+)\\]\\]");
+		match = pat.matcher(resultFromCheckPoint);
+		resultsRestore = new HashMap<>(); //storing result
+			
+			
+
+			//IF MATCH FOUND
+			while (match.find()) {
+				int key = Integer.parseInt(match.group(1));
+				String value = match.group(2);
+
+			
+				String[] entrieStrings = value.split(", ");
+				ArrayList<Integer> vArrayList = new ArrayList<>();
+				for (String v : entrieStrings) {
+					vArrayList.add(Integer.parseInt(v));
+				}
+
+				
+				resultsRestore.put(key, vArrayList);
+			}
+
+			for (Map.Entry<Integer, ArrayList<Integer>> entry : resultsRestore.entrySet()) {
+				String cqlQuery;
+				int key = entry.getKey();
+				
+				ArrayList<Integer> val = entry.getValue();
+
+				
+				 cqlQuery = String.format("INSERT INTO %s (id, events) VALUES (?, ?);", "grade");
+
+				
+				PreparedStatement preparedStatement = session.prepare(cqlQuery);
+
+				// Execute the statement with the values
+				session.execute(preparedStatement.bind(key, val));
+			}
+
+        
+		return true;
 
 	}
 
@@ -147,4 +252,10 @@ public class MyDBReplicableAppGP implements Replicable {
 	public Set<IntegerPacketType> getRequestTypes() {
 		return new HashSet<IntegerPacketType>();
 	}
+
+	//@Override
+	//public boolean execute(Request arg0) {
+		// TODO Auto-generated method stub
+	//	throw new UnsupportedOperationException("Unimplemented method 'execute'");
+	//}
 }
