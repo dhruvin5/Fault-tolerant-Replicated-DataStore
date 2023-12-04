@@ -243,7 +243,12 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				for (String node : this.serverMessenger.getNodeConfig().getNodeIDs()){
 					try {
 						int t1 = getCounterValue(zooKeeper, "/"+node);
-						incrementCounter(zooKeeper, "/"+node,t1-minimum_counter_value);
+						t1 = t1 - minimum_counter_value;
+						if(t1<0)
+						{
+							t1=0;
+						}
+						incrementCounter(zooKeeper, "/"+node,t1);
 					}catch (Exception e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
