@@ -135,7 +135,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 		if(!checkNodeexist(serverCheckpoint))
 		{
 			try {
-				zooKeeper.create(serverCheckpoint, "0".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+				zooKeeper.create(serverCheckpoint, "Row[]".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 			} catch (KeeperException | InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -215,10 +215,41 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 			
 				
 			ArrayList<String> requests  = getRequests();
-			if(requests.size()==400)
+			if(requests.size()>=400)
 			{
-				
+				int minimum_counter_value = requests.size();
+				for (String node : this.serverMessenger.getNodeConfig().getNodeIDs()){
+					try {
+						int t = getCounterValue(zooKeeper, "/"+node);
+						if(t<minimum_counter_value)
+						{
+							t = minimum_counter_value;
+						}
+
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+
+				}
+				int p =0;
+				for(int i=0;i<=minimum_counter_value;i++)
+				{
+					requests.remove(p);
+				}
+				for (String node : this.serverMessenger.getNodeConfig().getNodeIDs()){
+					try {
+						int t1 = getCounterValue(zooKeeper, "/"+node);
+						incrementCounter(zooKeeper, "/"+node,t1-minimum_counter_value);
+					}catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+
+
 			}
+			
 			String request = new String(bytes);
 			requests.add(request);
 			String concatenatedRequests = concatenateWithDelimiter(requests);
@@ -293,6 +324,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				//System.out.print(requeStrings.get(i));
 				session.execute(requeStrings.get(i));
 			}
+			checkpoint();
 			incrementCounter(zooKeeper, this.myZnode,requeStrings.size());
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -320,41 +352,41 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 		{
 			return true;
 		}
-		// String all_results;
-		// try {
-		// 	byte[] data = zooKeeper.getData(serverCheckpoint, false, null);
-		// 	all_results = data.toString();
-		// 	Pattern pattern = Pattern.compile("Row\\[(-?\\d+), \\[([^\\]]+)\\]\\]");
-		// 	Matcher matcher = pattern.matcher(all_results);
-		// 	Map<Integer, Vector<Integer>> resultMap = new HashMap<>();
+		String all_results;
+		try {
+			byte[] data = zooKeeper.getData(serverCheckpoint, false, null);
+			all_results = data.toString();
+			Pattern pattern = Pattern.compile("Row\\[(-?\\d+), \\[([^\\]]+)\\]\\]");
+			Matcher matcher = pattern.matcher(all_results);
+			Map<Integer, Vector<Integer>> resultMap = new HashMap<>();
 
-		// 	while (matcher.find()) {
-		// 		int key = Integer.parseInt(matcher.group(1));
-		// 		String valuesString = matcher.group(2);
+			while (matcher.find()) {
+				int key = Integer.parseInt(matcher.group(1));
+				String valuesString = matcher.group(2);
 
-		// 		String[] valuesArray = valuesString.split(", ");
-		// 		Vector<Integer> valuesVector = new Vector<>();
-		// 		for (String value : valuesArray) {
-		// 			valuesVector.add(Integer.parseInt(value));
-		// 		}
-		// 		resultMap.put(key, valuesVector);
-		// 	}
-		// 	int cnt = 0;
-		// 	for (Map.Entry<Integer, Vector<Integer>> entry : resultMap.entrySet()) {
-		// 		int key = entry.getKey();
-		// 		Vector<Integer> values = entry.getValue();
+				String[] valuesArray = valuesString.split(", ");
+				Vector<Integer> valuesVector = new Vector<>();
+				for (String value : valuesArray) {
+					valuesVector.add(Integer.parseInt(value));
+				}
+				resultMap.put(key, valuesVector);
+			}
+			int cnt = 0;
+			for (Map.Entry<Integer, Vector<Integer>> entry : resultMap.entrySet()) {
+				int key = entry.getKey();
+				Vector<Integer> values = entry.getValue();
 
-		// 		String cql = String.format("INSERT INTO %s (id, events) VALUES (?, ?);", myID+"grade");
+				String cql = String.format("INSERT INTO %s (id, events) VALUES (?, ?);", myID+"grade");
 
-		// 		PreparedStatement preparedStatement = session.prepare(cql);
-		// 		session.execute(preparedStatement.bind(key, values));
-		// 		cnt +=1;
-		// 	}
-		// 	//zooKeeper.setData(personalReqCounterPath,(Integer.toString(cnt)).getBytes(), -1);
-		// } catch (KeeperException | InterruptedException e) {
-		// 	// TODO Auto-generated catch block
-		// 	e.printStackTrace();
-		// };
+				PreparedStatement preparedStatement = session.prepare(cql);
+				session.execute(preparedStatement.bind(key, values));
+				cnt +=1;
+			}
+			//zooKeeper.setData(personalReqCounterPath,(Integer.toString(cnt)).getBytes(), -1);
+		} catch (KeeperException | InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		};
 		
 		return true;
 	}
@@ -392,6 +424,32 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 	}
 
 	public void close() {
+		try {
+			zooKeeper.delete(myZnode, -1);
+		} catch (InterruptedException | KeeperException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		if(!checkNodeexist(common_Znode_Path))
+		{
+		try {
+		
+			zooKeeper.delete(common_Znode_Path, -1);
+		} catch (InterruptedException | KeeperException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		}
+		if(!checkNodeexist(serverCheckpoint))
+		{
+		try {
+		
+			zooKeeper.delete(serverCheckpoint, -1);
+		} catch (InterruptedException | KeeperException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		}
 		if (zooKeeper != null) {
 			try {
 				zooKeeper.close();
