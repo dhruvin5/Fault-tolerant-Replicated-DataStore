@@ -15,7 +15,7 @@ import edu.umass.cs.nio.nioutils.NIOHeader;
 import edu.umass.cs.nio.nioutils.NodeConfigUtils;
 import edu.umass.cs.reconfiguration.reconfigurationutils.RequestParseException;
 
-
+import org.apache.derby.tools.sysinfo;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -27,6 +27,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
@@ -166,57 +167,43 @@ public class MyDBReplicableAppGP implements Replicable {
 	 */
 	@Override
 	public boolean restore(String s, String s1) {
-
-		String resultFromCheckPoint; 
-		Pattern pat;
-		Matcher match;
-		Map<Integer, ArrayList<Integer>>  resultsRestore;
-
 		if(s1.length()==2)
 		{
 		
 			return true;
 		}
-		
+
+		String resultFromCheckPoint; 
 		resultFromCheckPoint= s1;
-		pat = Pattern.compile("Row\\[(-?\\d+), \\[([^\\]]+)\\]\\]");
-		match = pat.matcher(resultFromCheckPoint);
-		resultsRestore = new HashMap<>(); //storing result
+		System.out.println(resultFromCheckPoint);
+		Pattern pattern = Pattern.compile("Row\\[(-?\\d+), \\[([^\\]]*(?:\\[.*?\\][^\\]]*)*)\\]\\]");
+			Matcher matcher = pattern.matcher(resultFromCheckPoint);
+			Map<Integer, List<Integer>> resultsRestore = new HashMap<>();
 			
-			
+			while (matcher.find()) {
+				
+				int key = Integer.parseInt(matcher.group(1));
+				
+				String valuesString = matcher.group(2);
 
-			//IF MATCH FOUND
-			while (match.find()) {
-				int key = Integer.parseInt(match.group(1));
-				String value = match.group(2);
-
-			
-				String[] entrieStrings = value.split(", ");
-				ArrayList<Integer> vArrayList = new ArrayList<>();
-				for (String v : entrieStrings) {
-					vArrayList.add(Integer.parseInt(v));
+				String[] valuesArray = valuesString.split(", ");
+				Vector<Integer> valuesVector = new Vector<>();
+				for (String value : valuesArray) {
+					valuesVector.add(Integer.parseInt(value));
 				}
-
-				
-				resultsRestore.put(key, vArrayList);
+				resultsRestore.put(key, valuesVector);
 			}
-
-			for (Map.Entry<Integer, ArrayList<Integer>> entry : resultsRestore.entrySet()) {
-				String cqlQuery;
+			
+			
+			for (Map.Entry<Integer, List<Integer>> entry : resultsRestore.entrySet()) {
 				int key = entry.getKey();
+				List<Integer> values = entry.getValue();
+				String q = "INSERT INTO " + "grade" + " (id, events) VALUES (" + key + ", " + values + ");";
 				
-				ArrayList<Integer> val = entry.getValue();
-
-				
-				 cqlQuery = String.format("INSERT INTO %s (id, events) VALUES (?, ?);", "grade");
-
-				
-				PreparedStatement preparedStatement = session.prepare(cqlQuery);
-
-				// Execute the statement with the values
-				session.execute(preparedStatement.bind(key, val));
+				 session.execute(q);
+		
 			}
-
+		
         
 		return true;
 

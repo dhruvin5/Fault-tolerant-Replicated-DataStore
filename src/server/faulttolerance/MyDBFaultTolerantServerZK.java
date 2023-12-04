@@ -233,10 +233,13 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 
 				}
 				int p =0;
-				for(int i=0;i<=minimum_counter_value;i++)
+				System.out.println(minimum_counter_value);
+				ArrayList<String> req1 = new ArrayList<>();
+				for(int i=minimum_counter_value;i<requests.size();i++)
 				{
-					requests.remove(p);
+					req1.add(requests.get(i));
 				}
+				requests = req1;
 				for (String node : this.serverMessenger.getNodeConfig().getNodeIDs()){
 					try {
 						int t1 = getCounterValue(zooKeeper, "/"+node);
@@ -331,9 +334,9 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 		}
 	}
 
-	public boolean checkpoint(){
+	public synchronized boolean checkpoint(){
 		 
-		System.out.println("checkpt");
+		//System.out.println("checkpt");
 		String query = "SELECT * FROM "+myID+".grade;";
 		ResultSet result = session.execute(query);
 		String all_results = result.all().toString();		
@@ -347,21 +350,29 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 		return true;
 	}
 
-	public boolean restore(){
+	public synchronized boolean restore(){
 		if(!checkNodeexist(serverCheckpoint))
 		{
 			return true;
 		}
-		String all_results;
+		String all_results="";
 		try {
 			byte[] data = zooKeeper.getData(serverCheckpoint, false, null);
-			all_results = data.toString();
-			Pattern pattern = Pattern.compile("Row\\[(-?\\d+), \\[([^\\]]+)\\]\\]");
+			try {
+				all_results = new String(data,SingleServer.DEFAULT_ENCODING);
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			int len = all_results.length();
+			
+			Pattern pattern = Pattern.compile("Row\\[(-?\\d+), \\[([^\\]]*(?:\\[.*?\\][^\\]]*)*)\\]\\]");
 			Matcher matcher = pattern.matcher(all_results);
-			Map<Integer, Vector<Integer>> resultMap = new HashMap<>();
-
+			Map<Integer, List<Integer>> resultMap = new HashMap<>();
+			
 			while (matcher.find()) {
 				int key = Integer.parseInt(matcher.group(1));
+				
 				String valuesString = matcher.group(2);
 
 				String[] valuesArray = valuesString.split(", ");
@@ -371,16 +382,20 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				}
 				resultMap.put(key, valuesVector);
 			}
-			int cnt = 0;
-			for (Map.Entry<Integer, Vector<Integer>> entry : resultMap.entrySet()) {
+			
+			//int cnt =0;
+			System.out.println("RESTORE---");
+			for (Map.Entry<Integer, List<Integer>> entry : resultMap.entrySet()) {
 				int key = entry.getKey();
-				Vector<Integer> values = entry.getValue();
-
-				String cql = String.format("INSERT INTO %s (id, events) VALUES (?, ?);", myID+"grade");
-
-				PreparedStatement preparedStatement = session.prepare(cql);
-				session.execute(preparedStatement.bind(key, values));
-				cnt +=1;
+				List<Integer> values = entry.getValue();
+				String q = "INSERT INTO " + "grade" + " (id, events) VALUES (" + key + ", " + values + ");";
+				//System.out.println(q);
+				//String cql = String.format("INSERT INTO %s (id, events) VALUES (?, ?);", "grade");
+				//System.out.println(cql);
+				//PreparedStatement preparedStatement = session.prepare(cql);
+				 session.execute(q);
+				//System.out.println(resultSet);
+				//cnt +=1;
 			}
 			//zooKeeper.setData(personalReqCounterPath,(Integer.toString(cnt)).getBytes(), -1);
 		} catch (KeeperException | InterruptedException e) {
