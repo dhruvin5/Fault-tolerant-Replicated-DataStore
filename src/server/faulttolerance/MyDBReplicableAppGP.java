@@ -104,9 +104,6 @@ public class MyDBReplicableAppGP implements Replicable {
 	@Override
 	public boolean execute(Request request, boolean b) {
 		return execute(request);
-			
-		
-	
 	}
 
 	/**

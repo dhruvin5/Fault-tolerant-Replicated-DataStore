@@ -320,41 +320,41 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 		{
 			return true;
 		}
-		String all_results;
-		try {
-			byte[] data = zooKeeper.getData(serverCheckpoint, false, null);
-			all_results = data.toString();
-			Pattern pattern = Pattern.compile("Row\\[(-?\\d+), \\[([^\\]]+)\\]\\]");
-			Matcher matcher = pattern.matcher(all_results);
-			Map<Integer, Vector<Integer>> resultMap = new HashMap<>();
+		// String all_results;
+		// try {
+		// 	byte[] data = zooKeeper.getData(serverCheckpoint, false, null);
+		// 	all_results = data.toString();
+		// 	Pattern pattern = Pattern.compile("Row\\[(-?\\d+), \\[([^\\]]+)\\]\\]");
+		// 	Matcher matcher = pattern.matcher(all_results);
+		// 	Map<Integer, Vector<Integer>> resultMap = new HashMap<>();
 
-			while (matcher.find()) {
-				int key = Integer.parseInt(matcher.group(1));
-				String valuesString = matcher.group(2);
+		// 	while (matcher.find()) {
+		// 		int key = Integer.parseInt(matcher.group(1));
+		// 		String valuesString = matcher.group(2);
 
-				String[] valuesArray = valuesString.split(", ");
-				Vector<Integer> valuesVector = new Vector<>();
-				for (String value : valuesArray) {
-					valuesVector.add(Integer.parseInt(value));
-				}
-				resultMap.put(key, valuesVector);
-			}
-			int cnt = 0;
-			for (Map.Entry<Integer, Vector<Integer>> entry : resultMap.entrySet()) {
-				int key = entry.getKey();
-				Vector<Integer> values = entry.getValue();
+		// 		String[] valuesArray = valuesString.split(", ");
+		// 		Vector<Integer> valuesVector = new Vector<>();
+		// 		for (String value : valuesArray) {
+		// 			valuesVector.add(Integer.parseInt(value));
+		// 		}
+		// 		resultMap.put(key, valuesVector);
+		// 	}
+		// 	int cnt = 0;
+		// 	for (Map.Entry<Integer, Vector<Integer>> entry : resultMap.entrySet()) {
+		// 		int key = entry.getKey();
+		// 		Vector<Integer> values = entry.getValue();
 
-				String cql = String.format("INSERT INTO %s (id, events) VALUES (?, ?);", myID+"grade");
+		// 		String cql = String.format("INSERT INTO %s (id, events) VALUES (?, ?);", myID+"grade");
 
-				PreparedStatement preparedStatement = session.prepare(cql);
-				session.execute(preparedStatement.bind(key, values));
-				cnt +=1;
-			}
-			//zooKeeper.setData(personalReqCounterPath,(Integer.toString(cnt)).getBytes(), -1);
-		} catch (KeeperException | InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		};
+		// 		PreparedStatement preparedStatement = session.prepare(cql);
+		// 		session.execute(preparedStatement.bind(key, values));
+		// 		cnt +=1;
+		// 	}
+		// 	//zooKeeper.setData(personalReqCounterPath,(Integer.toString(cnt)).getBytes(), -1);
+		// } catch (KeeperException | InterruptedException e) {
+		// 	// TODO Auto-generated catch block
+		// 	e.printStackTrace();
+		// };
 		
 		return true;
 	}
@@ -400,6 +400,10 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				e.printStackTrace();
 			}
 		}
+		this.serverMessenger.stop();
+        session.close();
+        cluster.close();
+
 	}
 
 	public static enum CheckpointRecovery {
