@@ -59,6 +59,8 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 	public static final String common_Znode_Path = "/LEADER";
 	final private String myZnode;
 	final private String serverCheckpoint;
+	final private String serverCheckpoint_counter;
+	
 	/**
 	 * Set this value to as small a value with which you can get tests to still
 	 * pass. The lower it is, the faster your implementation is. Grader* will
@@ -103,7 +105,8 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 		
 		this.myID = myID;
 		this.myZnode = "/"+myID;
-		this.serverCheckpoint = "/checkpoint"+myID;
+		this.serverCheckpoint = "/checkpoint";
+		this.serverCheckpoint_counter="/checkpoint_counter";
 		session = (cluster=Cluster.builder().addContactPoint("127.0.0.1")
                 .build()).connect(myID);
 
@@ -111,9 +114,9 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 		zooKeeper = new ZooKeeper("localhost:2181", 3000000, new Watcher() {
             @Override
             public void process(WatchedEvent event) {
-				System.out.println("in process to ZooKeeper ensemble.");
+				
 				if (event.getState() == Watcher.Event.KeeperState.SyncConnected) {
-					System.out.println("Reconnected to ZooKeeper ensemble.");
+					
 					
 					restore();
 				}
@@ -141,6 +144,17 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				e.printStackTrace();
 			}
 		}
+		if(!checkNodeexist(serverCheckpoint_counter))
+		{
+			try {
+				zooKeeper.create(serverCheckpoint_counter, "0".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+			} catch (KeeperException | InterruptedException e) {
+				// TODO Auto-generated catch block
+
+				e.printStackTrace();
+			}
+		}
+
 
 		this.serverMessenger =  new
                 MessageNIOTransport<String, String>(myID, nodeConfig,
@@ -215,25 +229,28 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 			
 				
 			ArrayList<String> requests  = getRequests();
-			if(requests.size()>=400)
+			String request="";
+			try {
+				request = new String(bytes,SingleServer.DEFAULT_ENCODING);
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			requests.add(request);
+			if(requests.size()==MAX_LOG_SIZE)
 			{
-				int minimum_counter_value = requests.size();
-				for (String node : this.serverMessenger.getNodeConfig().getNodeIDs()){
-					try {
-						int t = getCounterValue(zooKeeper, "/"+node);
-						if(t<minimum_counter_value)
-						{
-							t = minimum_counter_value;
-						}
-
-					} catch (Exception e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-
+				checkpoint(myID);
+				int t = 0;
+				try {
+					t = getCounterValue(zooKeeper, "/"+myID);
+					
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
-				int p =0;
-				System.out.println(minimum_counter_value);
+				int minimum_counter_value = t;
+				
+				
 				ArrayList<String> req1 = new ArrayList<>();
 				for(int i=minimum_counter_value;i<requests.size();i++)
 				{
@@ -244,22 +261,24 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 					try {
 						int t1 = getCounterValue(zooKeeper, "/"+node);
 						t1 = t1 - minimum_counter_value;
-						if(t1<0)
+						if(t1<=0)
 						{
 							t1=0;
 						}
+						
 						incrementCounter(zooKeeper, "/"+node,t1);
 					}catch (Exception e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 				}
+				
 
 
 			}
 			
-			String request = new String(bytes);
-			requests.add(request);
+			//String request = new String(bytes);
+			//requests.add(request);
 			String concatenatedRequests = concatenateWithDelimiter(requests);
 			
 			try {
@@ -309,19 +328,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 		return;
 	}
 
-	private void handleZNodeEvent(String path) {
-       
-		System.out.println(this.myID + path);
-       
-		if(path == common_Znode_Path)
-		{
-           	 System.out.println("Znode updated: " + path);
-			 ArrayList<String> requeStrings = getRequests();
-			 execute(requeStrings);
-         
-		}
-       
-    }
+	
 
 	public synchronized void execute(List<String>requeStrings)
 	{
@@ -332,17 +339,17 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				//System.out.print(requeStrings.get(i));
 				session.execute(requeStrings.get(i));
 			}
-			checkpoint();
+			//checkpoint();
 			incrementCounter(zooKeeper, this.myZnode,requeStrings.size());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	public synchronized boolean checkpoint(){
+	public synchronized boolean checkpoint(String id){
 		 
-		//System.out.println("checkpt");
-		String query = "SELECT * FROM "+myID+".grade;";
+		
+		String query = "SELECT * FROM "+id+".grade;";
 		ResultSet result = session.execute(query);
 		String all_results = result.all().toString();		
 		try {
@@ -356,10 +363,12 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 	}
 
 	public synchronized boolean restore(){
-		if(!checkNodeexist(serverCheckpoint))
+		if(!checkNodeexist(serverCheckpoint) || !checkNodeexist("/"+myID))
 		{
+
 			return true;
 		}
+		
 		String all_results="";
 		try {
 			byte[] data = zooKeeper.getData(serverCheckpoint, false, null);
@@ -369,13 +378,29 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			int len = all_results.length();
+			if(all_results.length()==5)
+			{
+				
+				try {
+					if(checkNodeexist("/"+myID))
+					{
+					incrementCounter(zooKeeper, "/"+myID, 0);
+					}
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				execute(getRequests());
+				return true;
+			}
+			
 			
 			Pattern pattern = Pattern.compile("Row\\[(-?\\d+), \\[([^\\]]*(?:\\[.*?\\][^\\]]*)*)\\]\\]");
 			Matcher matcher = pattern.matcher(all_results);
 			Map<Integer, List<Integer>> resultMap = new HashMap<>();
 			
 			while (matcher.find()) {
+				
 				int key = Integer.parseInt(matcher.group(1));
 				
 				String valuesString = matcher.group(2);
@@ -388,21 +413,25 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				resultMap.put(key, valuesVector);
 			}
 			
-			//int cnt =0;
-			System.out.println("RESTORE---");
+			
+			
 			for (Map.Entry<Integer, List<Integer>> entry : resultMap.entrySet()) {
 				int key = entry.getKey();
 				List<Integer> values = entry.getValue();
 				String q = "INSERT INTO " + "grade" + " (id, events) VALUES (" + key + ", " + values + ");";
-				//System.out.println(q);
-				//String cql = String.format("INSERT INTO %s (id, events) VALUES (?, ?);", "grade");
-				//System.out.println(cql);
-				//PreparedStatement preparedStatement = session.prepare(cql);
+				
 				 session.execute(q);
-				//System.out.println(resultSet);
-				//cnt +=1;
+			
 			}
-			//zooKeeper.setData(personalReqCounterPath,(Integer.toString(cnt)).getBytes(), -1);
+			try {
+				int t= getCounterValue(zooKeeper, this.serverCheckpoint_counter);
+				incrementCounter(zooKeeper, "/"+myID, t);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			execute(getRequests());
+			
 		} catch (KeeperException | InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

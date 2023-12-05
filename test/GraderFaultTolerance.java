@@ -41,7 +41,7 @@ public class GraderFaultTolerance extends GraderCommonSetup {
 /**
  * True if Gigapaxos being used, false if Zookeeper or anything else.
  */
-public static final boolean GIGAPAXOS_MODE = true;
+public static final boolean GIGAPAXOS_MODE = false;
 
 /**
  * Maximum permitted size of any collection that is used to maintain
@@ -411,56 +411,56 @@ public void test38_EntireStateMatchCheck() throws IOException,
  * @throws InterruptedException
  */
 
-// @Test
-// @GradedTest(name = "test39_InstantaneousMassacreAndRevivalTest()", max_score
-// 		= 3)
-// public void test39_InstantaneousMassacreAndRevivalTest() throws IOException,
-// 		InterruptedException {
-// 	ServerFailureRecoveryManager.killAllServers();
-// 	ServerFailureRecoveryManager.startAllServers();
-// 	Thread.sleep(PER_SERVER_BOOTSTRAP_TIME * servers.length);
-// 	test38_EntireStateMatchCheck();
-// }
+@Test
+@GradedTest(name = "test39_InstantaneousMassacreAndRevivalTest()", max_score
+		= 3)
+public void test39_InstantaneousMassacreAndRevivalTest() throws IOException,
+		InterruptedException {
+	ServerFailureRecoveryManager.killAllServers();
+	ServerFailureRecoveryManager.startAllServers();
+	Thread.sleep(PER_SERVER_BOOTSTRAP_TIME * servers.length);
+	test38_EntireStateMatchCheck();
+}
 
-// /**
-//  * Kills all servers serially and then recovers them serially, all while
-//  * spraying requests at the servers.
-//  * <p>
-//  * Because request spraying is happening concurrently with violent massacre
-//  * and benevolent rebirths, not all requests will be executed (liveness),
-//  * but some should get executed, and the state should be identical at the
-//  * end (safety). Furthermore, the key record is guaranteed to satisfy the
-//  * non-emptiness check in
-//  * {@link GraderFaultTolerance#verifyOrderConsistent}
-//  * because of an earlier test that already populated the record with
-//  * nonempty values.
-//  *
-//  * @throws IOException
-//  * @throws InterruptedException
-//  */
-// @Test
-// @GradedTest(name = "test40_SerialKillAndRecover()", max_score = 3)
-// public void test40_SerialKillAndRecover() throws IOException,
-// 		InterruptedException {
-// 	long interKillIntervalMillis = 500, interRecoverMillis = 800;
-// 	// This method is asynchronous and will schedule and return
-// 	// immediately.
-// 	ServerFailureRecoveryManager.serialKillAndThenSerialRecover(servers.length
-// 			, interKillIntervalMillis, interRecoverMillis);
-// 	// no bootstrap time needed here
+/**
+ * Kills all servers serially and then recovers them serially, all while
+ * spraying requests at the servers.
+ * <p>
+ * Because request spraying is happening concurrently with violent massacre
+ * and benevolent rebirths, not all requests will be executed (liveness),
+ * but some should get executed, and the state should be identical at the
+ * end (safety). Furthermore, the key record is guaranteed to satisfy the
+ * non-emptiness check in
+ * {@link GraderFaultTolerance#verifyOrderConsistent}
+ * because of an earlier test that already populated the record with
+ * nonempty values.
+ *
+ * @throws IOException
+ * @throws InterruptedException
+ */
+@Test
+@GradedTest(name = "test40_SerialKillAndRecover()", max_score = 3)
+public void test40_SerialKillAndRecover() throws IOException,
+		InterruptedException {
+	long interKillIntervalMillis = 500, interRecoverMillis = 800;
+	// This method is asynchronous and will schedule and return
+	// immediately.
+	ServerFailureRecoveryManager.serialKillAndThenSerialRecover(servers.length
+			, interKillIntervalMillis, interRecoverMillis);
+	// no bootstrap time needed here
 
-// 	// Spray requests while slaughter and rebirth is happening
-// 	for (int i = 0; i < servers.length*servers.length; i++) {
-// 		client.send(serverMap.get(getRandomServerAddr()),
-// 				getCommand(updateRecordOfTableCmd(fixedKeyKnownToExist,
-// 						DEFAULT_TABLE_NAME)));
-// 		Thread.sleep(Math.min(interKillIntervalMillis, interRecoverMillis) / 3);
-// 	}
-// 	// sleep long enough for all servers to have recovered
-// 	Thread.sleep((long) (PER_SERVER_BOOTSTRAP_TIME * servers.length + (interKillIntervalMillis + interRecoverMillis) * (1 + ServerFailureRecoveryManager.PERTURB_FRAC)));
+	// Spray requests while slaughter and rebirth is happening
+	for (int i = 0; i < servers.length*servers.length; i++) {
+		client.send(serverMap.get(getRandomServerAddr()),
+				getCommand(updateRecordOfTableCmd(fixedKeyKnownToExist,
+						DEFAULT_TABLE_NAME)));
+		Thread.sleep(Math.min(interKillIntervalMillis, interRecoverMillis) / 3);
+	}
+	// sleep long enough for all servers to have recovered
+	Thread.sleep((long) (PER_SERVER_BOOTSTRAP_TIME * servers.length + (interKillIntervalMillis + interRecoverMillis) * (1 + ServerFailureRecoveryManager.PERTURB_FRAC)));
 
-// 	verifyOrderConsistent(DEFAULT_TABLE_NAME, fixedKeyKnownToExist);
-// }
+	verifyOrderConsistent(DEFAULT_TABLE_NAME, fixedKeyKnownToExist);
+}
 
 
 /**
