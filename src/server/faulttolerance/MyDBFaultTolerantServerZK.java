@@ -132,7 +132,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				zooKeeper.create(myZnode, "0".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 			} catch (KeeperException | InterruptedException e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+				
 			}
 		}
 		if(!checkNodeexist(serverCheckpoint))
@@ -141,7 +141,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				zooKeeper.create(serverCheckpoint, "Row[]".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 			} catch (KeeperException | InterruptedException e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+			
 			}
 		}
 		if(!checkNodeexist(serverCheckpoint_counter))
@@ -149,9 +149,9 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 			try {
 				zooKeeper.create(serverCheckpoint_counter, "0".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 			} catch (KeeperException | InterruptedException e) {
-				// TODO Auto-generated catch block
+			
 
-				e.printStackTrace();
+			
 			}
 		}
 
@@ -180,8 +180,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 			}
 			return true;
 		} catch (KeeperException | InterruptedException e) {
-			
-			e.printStackTrace();
+		
 		}
 		return true;
 	}
@@ -195,9 +194,9 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 			data = zooKeeper.getData(common_Znode_Path, false,null);
 		} catch (KeeperException e) {
 
-			e.printStackTrace();
+		
 		} catch (InterruptedException e) {
-			e.printStackTrace();
+		
 		}
 		String existingData = "";
 		
@@ -211,7 +210,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				return requests;
 			} catch (UnsupportedEncodingException e) {
 				
-				e.printStackTrace();
+			
 			}
 			
 				
@@ -233,8 +232,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 			try {
 				request = new String(bytes,SingleServer.DEFAULT_ENCODING);
 			} catch (UnsupportedEncodingException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			
 			}
 			requests.add(request);
 			if(requests.size()==MAX_LOG_SIZE)
@@ -245,8 +243,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 					t = getCounterValue(zooKeeper, "/"+myID);
 					
 				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					
 				}
 				int minimum_counter_value = t;
 				
@@ -268,8 +265,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 						
 						incrementCounter(zooKeeper, "/"+node,t1);
 					}catch (Exception e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+					
 					}
 				}
 				
@@ -285,7 +281,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				zooKeeper.setData(common_Znode_Path, concatenatedRequests.getBytes(), -1);
 				} catch (KeeperException | InterruptedException e) {
 					
-					e.printStackTrace();
+				
 				}
         } 
 		
@@ -298,8 +294,8 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 			try {
 				zooKeeper.create(common_Znode_Path, concatenatedRequests.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 			} catch (KeeperException | InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				
+			
 			}
 			
         }
@@ -307,7 +303,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
             try {
                 this.serverMessenger.send(node, bytes);
             } catch (IOException e) {
-                e.printStackTrace();
+             
             }
 		}
 	}
@@ -322,7 +318,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 			ArrayList<String>request = getRequests();
 			execute(request);
 		} catch (Exception e) {
-			e.printStackTrace();
+			
 		}
 		
 		return;
@@ -336,13 +332,13 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 			int executed = getCounterValue(zooKeeper, myZnode);
 			for(int i=executed;i<requeStrings.size();i++)
 			{
-				//System.out.print(requeStrings.get(i));
+				
 				session.execute(requeStrings.get(i));
 			}
 			//checkpoint();
 			incrementCounter(zooKeeper, this.myZnode,requeStrings.size());
 		} catch (Exception e) {
-			e.printStackTrace();
+			
 		}
 	}
 
@@ -355,8 +351,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 		try {
 			zooKeeper.setData(serverCheckpoint,all_results.getBytes(), -1);
 		} catch (KeeperException | InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		
 		}
 		
 		return true;
@@ -375,8 +370,8 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 			try {
 				all_results = new String(data,SingleServer.DEFAULT_ENCODING);
 			} catch (UnsupportedEncodingException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				
+				
 			}
 			if(all_results.length()==5)
 			{
@@ -388,7 +383,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 					}
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
-					e.printStackTrace();
+					
 				}
 				execute(getRequests());
 				return true;
@@ -427,14 +422,12 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 				int t= getCounterValue(zooKeeper, this.serverCheckpoint_counter);
 				incrementCounter(zooKeeper, "/"+myID, t);
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				
 			}
 			execute(getRequests());
 			
 		} catch (KeeperException | InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			
 		};
 		
 		return true;
@@ -476,8 +469,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 		try {
 			zooKeeper.delete(myZnode, -1);
 		} catch (InterruptedException | KeeperException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			
 		}
 		if(!checkNodeexist(common_Znode_Path))
 		{
@@ -485,8 +477,7 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 		
 			zooKeeper.delete(common_Znode_Path, -1);
 		} catch (InterruptedException | KeeperException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			
 		}
 		}
 		if(!checkNodeexist(serverCheckpoint))
@@ -495,16 +486,14 @@ public class MyDBFaultTolerantServerZK extends server.MyDBSingleServer {
 		
 			zooKeeper.delete(serverCheckpoint, -1);
 		} catch (InterruptedException | KeeperException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			
 		}
 		}
 		if (zooKeeper != null) {
 			try {
 				zooKeeper.close();
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			
 			}
 		}
 		this.serverMessenger.stop();

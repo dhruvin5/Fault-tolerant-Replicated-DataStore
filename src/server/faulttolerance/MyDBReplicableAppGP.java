@@ -116,7 +116,7 @@ public class MyDBReplicableAppGP implements Replicable {
 	 */
 	@Override
 	public boolean execute(Request request) {
-		// TODO: execute the request by sending it to the data store
+		
 		String query = request.toString();
 		
 		JSONObject json1;
@@ -124,15 +124,15 @@ public class MyDBReplicableAppGP implements Replicable {
 		try {
 			json1 = new JSONObject(query);
 			query_toexec = json1.getString("QV");
-			//System.out.println(query_toexec);
+			
 		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			
+		
 		}
-		//ResultSet resultSet = session.execute(query);
+		
 		try{
 			session.execute(query_toexec);
-			//String p = this.checkpoint(myID);
+		
 		}
 			catch(Exception e){
 				return false;
@@ -149,11 +149,11 @@ public class MyDBReplicableAppGP implements Replicable {
 	 */
 	@Override
 	public String checkpoint(String s) {
-		//System.out.println("CHECKPOINT");
+		
 
 		ResultSet result =  session.execute("SELECT * FROM grade;");
 		String all_results = result.all().toString();
-		//System.out.println(myID + "---:+" + all_results);
+		
 		
 		return  all_results;
 	}
@@ -175,7 +175,7 @@ public class MyDBReplicableAppGP implements Replicable {
 
 		String resultFromCheckPoint; 
 		resultFromCheckPoint= s1;
-		System.out.println(resultFromCheckPoint);
+		
 		Pattern pattern = Pattern.compile("Row\\[(-?\\d+), \\[([^\\]]*(?:\\[.*?\\][^\\]]*)*)\\]\\]");
 			Matcher matcher = pattern.matcher(resultFromCheckPoint);
 			Map<Integer, List<Integer>> resultsRestore = new HashMap<>();
