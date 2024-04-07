@@ -1,4 +1,4 @@
-**Fault-tolerant replicated datastore!**
+**Fault-tolerant replicated datastore**
 
 
 
